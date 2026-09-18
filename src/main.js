@@ -1770,7 +1770,7 @@ function switchServiceTab(tabName) {
 
   // If not currently on home view, switch back to home view
   if (state.currentView !== 'home') {
-    switchView('home');
+    switchView('home', false);
   }
 
   // Render tab contents
@@ -2420,19 +2420,19 @@ document.addEventListener('DOMContentLoaded', () => {
   setupHomepageComponents();
   setupTravelServicesAndHostPortal();
 
-  // Handle direct hash navigation
+  // Handle direct hash navigation on initial page load (without creating skippable history entries)
   const hash = window.location.hash.replace('#', '');
   if (hash === 'login') {
-    switchView('login');
+    switchView('login', false);
   } else if (hash === 'dashboard' && state.user) {
-    switchView('dashboard');
+    switchView('dashboard', false);
     renderDashboard();
   } else if (hash === 'results') {
     performSearch();
   } else if (['flights', 'packages', 'cars', 'attractions', 'taxis'].includes(hash)) {
     switchServiceTab(hash);
   } else {
-    switchView('home');
+    switchView('home', false);
   }
 });
 

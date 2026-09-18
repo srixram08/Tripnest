@@ -27,7 +27,7 @@
   --b-radius-md: 8px;
   --b-radius-lg: 12px;
   --b-radius-xl: 16px;
-  --b-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --b-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 * {
