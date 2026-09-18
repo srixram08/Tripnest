@@ -1,0 +1,15 @@
+{
+  "name": "tripnest",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TripNest — Your complete travel & stay hub",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}
