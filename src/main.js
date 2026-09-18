@@ -6,7 +6,12 @@ import {
   EXPLORE_INDIA,
   HOMES_GUESTS_LOVE,
   POPULAR_LOCATIONS,
-  SUGGESTIONS
+  SUGGESTIONS,
+  FLIGHTS_DATA,
+  PACKAGES_DATA,
+  CARS_DATA,
+  ATTRACTIONS_DATA,
+  TAXIS_DATA
 } from './data.js';
 
 // ============================================================================
@@ -51,6 +56,8 @@ const state = {
   bookings: JSON.parse(localStorage.getItem(STORAGE_KEYS.BOOKINGS)) || defaultBookings,
   wishlist: new Set(JSON.parse(localStorage.getItem(STORAGE_KEYS.WISHLIST)) || ['hotel-che-01', 'stay-1']),
   recentSearches: JSON.parse(localStorage.getItem(STORAGE_KEYS.RECENT_SEARCHES)) || ['Chennai', 'New Delhi', 'Goa'],
+  hotels: JSON.parse(localStorage.getItem('tripnest_custom_hotels')) || [...HOTELS_DATA],
+  activeServiceTab: 'stays',
   
   // Active search parameters
   destination: 'Chennai',
@@ -147,13 +154,18 @@ function switchView(viewName, updateHistory = true) {
     header.classList.remove('compact-header');
     heroHomeHeader.style.display = 'block';
     searchSection.classList.remove('compact-mode');
-    searchCheckboxes.style.display = 'flex';
     searchSection.style.display = 'block';
+    if (typeof updateSearchFormsVisibility === 'function') {
+      updateSearchFormsVisibility();
+    }
   } else if (viewName === 'results') {
     header.classList.add('compact-header');
     heroHomeHeader.style.display = 'none';
     searchSection.classList.add('compact-mode');
     searchCheckboxes.style.display = 'none';
+    if (typeof showSearchFormOnly === 'function') {
+      showSearchFormOnly('searchForm');
+    }
     searchSection.style.display = 'block';
   } else {
     // Login, Details, Checkout, Confirmation, Dashboard
@@ -554,7 +566,7 @@ function filterAndSortHotels() {
   const nights = getNightsCount();
   const destLower = state.destination.toLowerCase().trim();
 
-  let list = HOTELS_DATA.filter(h => {
+  let list = state.hotels.filter(h => {
     // City or country match (or show top hotels if query generic)
     const matchLocation = h.city.toLowerCase().includes(destLower) ||
                           h.area.toLowerCase().includes(destLower) ||
@@ -583,7 +595,7 @@ function filterAndSortHotels() {
 
   // If no direct city match, fallback to showing all top rated hotels for discovery
   if (list.length === 0) {
-    list = HOTELS_DATA.filter(h => h.pricePerNight <= state.filters.maxPrice);
+    list = state.hotels.filter(h => h.pricePerNight <= state.filters.maxPrice);
   }
 
   // Sorting
@@ -915,7 +927,7 @@ function setupResultsFiltersAndSorting() {
 // ============================================================================
 
 function openHotelDetails(hotelId) {
-  const hotel = HOTELS_DATA.find(h => h.id === hotelId);
+  const hotel = state.hotels.find(h => h.id === hotelId) || HOTELS_DATA.find(h => h.id === hotelId);
   if (!hotel) return;
 
   state.selectedHotel = hotel;
@@ -1648,10 +1660,746 @@ function setupHomepageComponents() {
 
   document.getElementById('currencyBtn').addEventListener('click', () => showToast('Currency: INR (₹)'));
   document.getElementById('langBtn').addEventListener('click', () => showToast('Language: English (India)'));
-  document.getElementById('footerListProperty').addEventListener('click', () => showToast('Redirecting to TripNest Partner Hub...'));
-  document.getElementById('listPropertyLink').addEventListener('click', () => showToast('Redirecting to TripNest Partner Hub...'));
+  document.getElementById('footerListProperty').addEventListener('click', (e) => {
+    e.preventDefault();
+    openHostPropertyWizard();
+  });
+  document.getElementById('listPropertyLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    openHostPropertyWizard();
+  });
   document.getElementById('footerMyAccountLink').addEventListener('click', () => switchView('dashboard'));
   document.getElementById('footerMyBookingsLink').addEventListener('click', () => switchView('dashboard'));
+}
+
+// ============================================================================
+// Travel Services Tabs & Host Portal Module
+// ============================================================================
+
+function showSearchFormOnly(activeFormId) {
+  const forms = ['searchForm', 'searchFormFlights', 'searchFormPackages', 'searchFormCars', 'searchFormAttractions', 'searchFormTaxis'];
+  forms.forEach(fId => {
+    const el = document.getElementById(fId);
+    if (el) el.style.display = (fId === activeFormId) ? 'flex' : 'none';
+  });
+}
+
+function updateSearchFormsVisibility() {
+  const tab = state.activeServiceTab || 'stays';
+  const checkboxes = document.getElementById('searchCheckboxes');
+  
+  if (tab === 'stays') {
+    showSearchFormOnly('searchForm');
+    if (checkboxes) checkboxes.style.display = 'flex';
+  } else if (tab === 'flights') {
+    showSearchFormOnly('searchFormFlights');
+    if (checkboxes) checkboxes.style.display = 'none';
+  } else if (tab === 'packages') {
+    showSearchFormOnly('searchFormPackages');
+    if (checkboxes) checkboxes.style.display = 'none';
+  } else if (tab === 'cars') {
+    showSearchFormOnly('searchFormCars');
+    if (checkboxes) checkboxes.style.display = 'none';
+  } else if (tab === 'attractions') {
+    showSearchFormOnly('searchFormAttractions');
+    if (checkboxes) checkboxes.style.display = 'none';
+  } else if (tab === 'taxis') {
+    showSearchFormOnly('searchFormTaxis');
+    if (checkboxes) checkboxes.style.display = 'none';
+  }
+}
+
+function switchServiceTab(tabName) {
+  state.activeServiceTab = tabName;
+
+  // Update nav pills active styling
+  const pillMap = {
+    stays: 'navPillStays',
+    flights: 'navPillFlights',
+    packages: 'navPillPackages',
+    cars: 'navPillCars',
+    attractions: 'navPillAttractions',
+    taxis: 'navPillTaxis'
+  };
+
+  Object.entries(pillMap).forEach(([k, pillId]) => {
+    const el = document.getElementById(pillId);
+    if (el) {
+      if (k === tabName) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    }
+  });
+
+  // Update Hero Titles
+  const heroTitles = {
+    stays: { title: 'Find your next stay', sub: 'Search deals on hotels, homes, and much more...' },
+    flights: { title: 'Compare and book flights with ease', sub: 'Discover your next adventure with top airlines & transparent fares' },
+    packages: { title: 'Book Flight + Hotel together and save', sub: 'Handcrafted holiday bundles with guaranteed savings & luxury stays' },
+    cars: { title: 'Car hire for any kind of trip', sub: 'Great cars at great prices, from the biggest car rental companies' },
+    attractions: { title: 'Top attractions, activities & experiences', sub: 'Discover the best things to do wherever you travel' },
+    taxis: { title: 'Reliable airport transfers, fixed price', sub: 'Flight tracking, free waiting time, and meet & greet included' }
+  };
+
+  const heroTitleEl = document.getElementById('heroMainTitle');
+  const heroSubEl = document.getElementById('heroMainSubtitle');
+  if (heroTitleEl && heroSubEl && heroTitles[tabName]) {
+    heroTitleEl.textContent = heroTitles[tabName].title;
+    heroSubEl.textContent = heroTitles[tabName].sub;
+  }
+
+  // Update Home Content Sections
+  const contentMap = {
+    stays: 'homeContentStays',
+    flights: 'homeContentFlights',
+    packages: 'homeContentPackages',
+    cars: 'homeContentCars',
+    attractions: 'homeContentAttractions',
+    taxis: 'homeContentTaxis'
+  };
+
+  Object.entries(contentMap).forEach(([k, cId]) => {
+    const el = document.getElementById(cId);
+    if (el) el.style.display = (k === tabName) ? 'block' : 'none';
+  });
+
+  // Show right search form
+  updateSearchFormsVisibility();
+
+  // If not currently on home view, switch back to home view
+  if (state.currentView !== 'home') {
+    switchView('home');
+  }
+
+  // Render tab contents
+  if (tabName === 'flights') renderFlights('all');
+  if (tabName === 'packages') renderPackages();
+  if (tabName === 'cars') renderCars('all');
+  if (tabName === 'attractions') renderAttractions('all');
+  if (tabName === 'taxis') renderTaxis();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// 1. FLIGHTS MODULE
+function renderFlights(routeFilter = 'all') {
+  const grid = document.getElementById('flightsListGrid');
+  if (!grid) return;
+
+  let list = [...FLIGHTS_DATA];
+  if (routeFilter !== 'all') {
+    const [orig, dest] = routeFilter.split('-');
+    list = list.filter(f => f.originCode === orig && f.destCode.startsWith(dest.slice(0, 2)));
+    if (list.length === 0) list = [...FLIGHTS_DATA];
+  }
+
+  grid.innerHTML = list.map(f => `
+    <div class="flight-card">
+      <div class="flight-airline-col">
+        <div class="airline-badge" style="background-color: ${f.logoColor};">${f.airline.charAt(0)}</div>
+        <div class="airline-info">
+          <h4>${f.airline}</h4>
+          <span>${f.flightNumber} · ${f.cabinClass}</span>
+        </div>
+      </div>
+
+      <div class="flight-schedule-col">
+        <div class="flight-point">
+          <div class="point-time">${f.departureTime}</div>
+          <div class="point-code">${f.originCode} (${f.originCity})</div>
+        </div>
+
+        <div class="flight-route-duration">
+          <span class="duration-text">${f.duration}</span>
+          <div class="flight-timeline-bar"></div>
+          <span class="stops-badge">${f.stops}</span>
+        </div>
+
+        <div class="flight-point">
+          <div class="point-time">${f.arrivalTime}</div>
+          <div class="point-code">${f.destCode} (${f.destCity})</div>
+        </div>
+      </div>
+
+      <div class="flight-baggage-col">
+        <div>🧳 ${f.baggage}</div>
+        <div style="color: var(--b-green-dark); font-weight: 600; margin-top: 4px;">✓ ${f.refundable ? 'Refundable' : 'Standard Fare'}</div>
+      </div>
+
+      <div class="flight-price-col">
+        <div class="flight-price">${formatINR(f.price)}</div>
+        <div class="flight-fare-type">Includes taxes & fees</div>
+        <button type="button" class="btn-primary-sm btn-book-flight" data-id="${f.id}">Select flight &rsaquo;</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Book Flight buttons
+  grid.querySelectorAll('.btn-book-flight').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const flightId = e.currentTarget.getAttribute('data-id');
+      const flight = FLIGHTS_DATA.find(f => f.id === flightId);
+      if (!flight) return;
+
+      openServiceBookingVoucher({
+        title: 'Flight Reservation Confirmed!',
+        sub: 'Electronic ticket receipt sent to ' + (state.user ? state.user.email : 'rohit@example.com'),
+        refPrefix: 'TN-FL-',
+        icon: '✈️',
+        itemHeading: `${flight.airline} Flight ${flight.flightNumber}`,
+        itemSub: `${flight.originCity} (${flight.originCode}) ➔ ${flight.destCity} (${flight.destCode}) · ${flight.duration} (${flight.stops})`,
+        details: [
+          { label: 'Departure', val: `${flight.departureTime} (${flight.originCode})` },
+          { label: 'Arrival', val: `${flight.arrivalTime} (${flight.destCode})` },
+          { label: 'Cabin Class', val: flight.cabinClass },
+          { label: 'Baggage', val: flight.baggage }
+        ],
+        price: flight.price,
+        guestName: state.user ? state.user.name : 'Rohit'
+      });
+    });
+  });
+}
+
+// 2. PACKAGES MODULE
+function renderPackages() {
+  const grid = document.getElementById('packagesGrid');
+  if (!grid) return;
+
+  grid.innerHTML = PACKAGES_DATA.map(pkg => `
+    <div class="package-card">
+      <div class="pkg-card-img-wrap">
+        <img src="${pkg.image}" alt="${pkg.title}" class="pkg-card-img" loading="lazy">
+        <span class="pkg-card-badge">${pkg.badge}</span>
+      </div>
+      <div class="pkg-card-body">
+        <span class="pkg-nights-pill">${pkg.nights} · ${pkg.destination}</span>
+        <h3 class="pkg-card-title">${pkg.title}</h3>
+        <p class="pkg-hotel-name">🏨 ${pkg.hotelName} · ★ ${pkg.rating} (${pkg.reviews} reviews)</p>
+        <p style="font-size: 12px; color: var(--b-blue-dark); margin-bottom: 8px;">✈️ ${pkg.flightSummary}</p>
+        
+        <div class="pkg-inclusions-list">
+          ${pkg.includes.map(inc => `<span class="pkg-inclusion-chip">✓ ${inc}</span>`).join('')}
+        </div>
+
+        <div class="pkg-pricing-row">
+          <div>
+            <div class="pkg-orig-price">${formatINR(pkg.originalPrice)}</div>
+            <div class="pkg-final-price">${formatINR(pkg.price)}</div>
+            <div class="pkg-savings-note">You save ${formatINR(pkg.savings)}!</div>
+          </div>
+          <button type="button" class="btn-primary btn-book-package" data-id="${pkg.id}">Book Package &rsaquo;</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.btn-book-package').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const pkgId = e.currentTarget.getAttribute('data-id');
+      const pkg = PACKAGES_DATA.find(p => p.id === pkgId);
+      if (!pkg) return;
+
+      openServiceBookingVoucher({
+        title: 'Holiday Package Confirmed!',
+        sub: 'Complete vacation itinerary generated for ' + (state.user ? state.user.email : 'rohit@example.com'),
+        refPrefix: 'TN-PKG-',
+        icon: '🧳',
+        itemHeading: pkg.title,
+        itemSub: `${pkg.hotelName} · ${pkg.nights} in ${pkg.destination}`,
+        details: [
+          { label: 'Destination', val: pkg.destination },
+          { label: 'Duration', val: pkg.nights },
+          { label: 'Hotel Rating', val: `★ ${pkg.rating} Superb` },
+          { label: 'Flights', val: pkg.flightSummary }
+        ],
+        price: pkg.price,
+        guestName: state.user ? state.user.name : 'Rohit'
+      });
+    });
+  });
+}
+
+// 3. CAR RENTALS MODULE
+function renderCars(categoryFilter = 'all') {
+  const grid = document.getElementById('carsGrid');
+  if (!grid) return;
+
+  let list = [...CARS_DATA];
+  if (categoryFilter !== 'all') {
+    list = list.filter(c => c.category.toLowerCase().includes(categoryFilter.toLowerCase()));
+    if (list.length === 0) list = [...CARS_DATA];
+  }
+
+  grid.innerHTML = list.map(car => `
+    <div class="car-card">
+      <div class="car-card-img-wrap">
+        <img src="${car.image}" alt="${car.name}" class="car-card-img" loading="lazy">
+        <span class="car-supplier-tag">${car.supplier}</span>
+      </div>
+      <div class="car-card-body">
+        <span class="car-category-pill">${car.category}</span>
+        <h3 class="car-card-title">${car.name}</h3>
+
+        <div class="car-specs-grid">
+          <span class="car-spec-chip">👤 ${car.seats} seats</span>
+          <span class="car-spec-chip">⚙️ ${car.transmission}</span>
+          <span class="car-spec-chip">❄️ A/C</span>
+          <span class="car-spec-chip">🛣️ ${car.mileage}</span>
+        </div>
+
+        <div class="car-cancel-policy">✓ ${car.cancellation}</div>
+
+        <div class="car-price-row">
+          <div>
+            <div class="car-rate-day">${formatINR(car.pricePerDay)}</div>
+            <div class="car-rate-sub">per day / taxes incl.</div>
+          </div>
+          <button type="button" class="btn-primary-sm btn-book-car" data-id="${car.id}">Rent Car &rsaquo;</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.btn-book-car').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const carId = e.currentTarget.getAttribute('data-id');
+      const car = CARS_DATA.find(c => c.id === carId);
+      if (!car) return;
+
+      openServiceBookingVoucher({
+        title: 'Car Rental Reserved!',
+        sub: 'Digital voucher ready for pickup at Chennai Airport (MAA)',
+        refPrefix: 'TN-CAR-',
+        icon: '🚗',
+        itemHeading: `${car.name} (${car.category})`,
+        itemSub: `Supplier: ${car.supplier} · Unlimited Kilometers included`,
+        details: [
+          { label: 'Transmission', val: car.transmission },
+          { label: 'Capacity', val: `${car.seats} Passengers, ${car.bags} Bags` },
+          { label: 'Fuel & AC', val: `${car.fuel} · Air Conditioned` },
+          { label: 'Insurance', val: 'Collision Damage Waiver Included' }
+        ],
+        price: car.pricePerDay * 2,
+        guestName: state.user ? state.user.name : 'Rohit'
+      });
+    });
+  });
+}
+
+// 4. ATTRACTIONS MODULE
+function renderAttractions(catFilter = 'all') {
+  const grid = document.getElementById('attractionsGrid');
+  if (!grid) return;
+
+  let list = [...ATTRACTIONS_DATA];
+  if (catFilter !== 'all') {
+    list = list.filter(a => a.category.toLowerCase().includes(catFilter.toLowerCase()));
+    if (list.length === 0) list = [...ATTRACTIONS_DATA];
+  }
+
+  grid.innerHTML = list.map(att => `
+    <div class="attraction-card">
+      <div class="att-card-img-wrap">
+        <img src="${att.image}" alt="${att.title}" class="att-card-img" loading="lazy">
+        <span class="att-card-badge">${att.badge}</span>
+      </div>
+      <div class="att-card-body">
+        <span class="att-cat-pill">${att.category} · ${att.city}</span>
+        <h3 class="att-card-title">${att.title}</h3>
+
+        <div class="att-rating-row">
+          <span class="att-score-badge">${att.rating}</span>
+          <span class="att-reviews-count">${att.reviews.toLocaleString()} reviews</span>
+          <span style="font-size: 11px; color: var(--b-text-secondary); margin-left: auto;">⏱ ${att.duration}</span>
+        </div>
+
+        <div class="att-features-list">
+          ${att.features.slice(0, 3).map(f => `<div class="att-feature-item">✓ ${f}</div>`).join('')}
+        </div>
+
+        <div class="att-price-row">
+          <div>
+            <div style="font-size: 11px; color: var(--b-text-muted); text-decoration: line-through;">${formatINR(att.originalPrice)}</div>
+            <div style="font-size: 20px; font-weight: 800; color: var(--b-text);">${formatINR(att.price)}</div>
+            <div style="font-size: 11px; color: var(--b-text-secondary);">per adult</div>
+          </div>
+          <button type="button" class="btn-primary-sm btn-book-attraction" data-id="${att.id}">Book Tickets &rsaquo;</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.btn-book-attraction').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const attId = e.currentTarget.getAttribute('data-id');
+      const att = ATTRACTIONS_DATA.find(a => a.id === attId);
+      if (!att) return;
+
+      openServiceBookingVoucher({
+        title: 'Experience Tickets Confirmed!',
+        sub: 'Instant mobile QR voucher issued for ' + (state.user ? state.user.email : 'rohit@example.com'),
+        refPrefix: 'TN-EXP-',
+        icon: '🎡',
+        itemHeading: att.title,
+        itemSub: `${att.city} · ${att.duration} · ${att.category}`,
+        details: [
+          { label: 'Activity Date', val: 'Flexible / Valid 30 days' },
+          { label: 'Tickets', val: '2 Adults (Fastrack)' },
+          { label: 'Rating', val: `★ ${att.rating} (${att.reviews} reviews)` },
+          { label: 'Cancellation', val: 'Free cancellation up to 24h' }
+        ],
+        price: att.price * 2,
+        guestName: state.user ? state.user.name : 'Rohit'
+      });
+    });
+  });
+}
+
+// 5. AIRPORT TAXIS MODULE
+function renderTaxis() {
+  const grid = document.getElementById('taxisGrid');
+  if (!grid) return;
+
+  grid.innerHTML = TAXIS_DATA.map(taxi => `
+    <div class="taxi-card">
+      <div class="taxi-card-top">
+        <div>
+          <h3 class="taxi-card-title">${taxi.name}</h3>
+          <p class="taxi-card-model">${taxi.model}</p>
+        </div>
+        <span class="badge-discount" style="font-size: 11px;">${taxi.badge}</span>
+      </div>
+
+      <div class="taxi-cap-chips">
+        <span class="taxi-cap-chip">👤 Max ${taxi.passengers}</span>
+        <span class="taxi-cap-chip">🧳 ${taxi.luggage} bags</span>
+      </div>
+
+      <div class="taxi-features-list">
+        ${taxi.features.map(f => `<div class="taxi-feature-bullet"><span style="color: var(--b-green-dark); font-weight: bold;">✓</span> <span>${f}</span></div>`).join('')}
+      </div>
+
+      <div class="taxi-price-box">
+        <div>
+          <div class="taxi-price-amount">${formatINR(taxi.priceEstimate)}</div>
+          <span style="font-size: 11px; color: var(--b-text-secondary);">Fixed fare (tolls incl.)</span>
+        </div>
+        <button type="button" class="btn-primary-sm btn-book-taxi" data-id="${taxi.id}">Book Transfer &rsaquo;</button>
+      </div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.btn-book-taxi').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const taxiId = e.currentTarget.getAttribute('data-id');
+      const taxi = TAXIS_DATA.find(t => t.id === taxiId);
+      if (!taxi) return;
+
+      openServiceBookingVoucher({
+        title: 'Airport Transfer Confirmed!',
+        sub: 'Driver assigned with flight tracking for ' + (state.user ? state.user.email : 'rohit@example.com'),
+        refPrefix: 'TN-TAXI-',
+        icon: '🚕',
+        itemHeading: `${taxi.name} (${taxi.model})`,
+        itemSub: 'Pickup: Chennai Airport (MAA) ➔ Destination: T. Nagar, Chennai',
+        details: [
+          { label: 'Date & Time', val: 'Fri, 20 Mar · 14:30' },
+          { label: 'Passengers', val: `${taxi.passengers} Passengers, ${taxi.luggage} Luggage` },
+          { label: 'Driver Service', val: 'Meet & Greet inside arrivals with nameboard' },
+          { label: 'Waiting Policy', val: '45 mins free waiting time from landing' }
+        ],
+        price: taxi.priceEstimate,
+        guestName: state.user ? state.user.name : 'Rohit'
+      });
+    });
+  });
+}
+
+// 6. GENERIC SERVICE BOOKING VOUCHER MODAL
+function openServiceBookingVoucher(data) {
+  const modal = document.getElementById('modalServiceBooking');
+  if (!modal) return;
+
+  const randId = data.refPrefix + Math.floor(10000 + Math.random() * 90000);
+
+  document.getElementById('svcVoucherIcon').textContent = data.icon || '✈️';
+  document.getElementById('svcVoucherTitle').textContent = data.title || 'Reservation Complete!';
+  document.getElementById('svcVoucherSub').textContent = data.sub || '';
+  document.getElementById('svcBookingRef').textContent = randId;
+  document.getElementById('svcItemHeading').textContent = data.itemHeading || '';
+  document.getElementById('svcItemSub').textContent = data.itemSub || '';
+  document.getElementById('svcGuestName').textContent = data.guestName || (state.user ? state.user.name : 'Rohit');
+  document.getElementById('svcTotalAmount').textContent = formatINR(data.price || 0);
+
+  const grid = document.getElementById('svcDetailsGrid');
+  grid.innerHTML = (data.details || []).map(d => `
+    <div><span style="color: var(--b-text-secondary);">${d.label}:</span> <strong>${d.val}</strong></div>
+  `).join('');
+
+  modal.style.display = 'flex';
+  showToast(`🎉 Reservation confirmed! Reference: ${randId}`);
+}
+
+// 7. LIST YOUR PROPERTY WIZARD (Host Onboarding Portal)
+let currentWizardStep = 1;
+
+function openHostPropertyWizard() {
+  currentWizardStep = 1;
+  const modal = document.getElementById('modalListProperty');
+  if (!modal) return;
+
+  modal.style.display = 'flex';
+  updateWizardUI();
+}
+
+function updateWizardUI() {
+  // Step indicator
+  document.querySelectorAll('.wizard-steps-indicator .step-dot').forEach(dot => {
+    const s = parseInt(dot.getAttribute('data-step'), 10);
+    if (s < currentWizardStep) {
+      dot.classList.remove('active');
+      dot.classList.add('completed');
+    } else if (s === currentWizardStep) {
+      dot.classList.add('active');
+      dot.classList.remove('completed');
+    } else {
+      dot.classList.remove('active', 'completed');
+    }
+  });
+
+  // Panels
+  for (let s = 1; s <= 4; s++) {
+    const p = document.getElementById(`wizardStep${s}`);
+    if (p) p.style.display = (s === currentWizardStep) ? 'block' : 'none';
+  }
+  const successP = document.getElementById('wizardStepSuccess');
+  if (successP) successP.style.display = (currentWizardStep === 5) ? 'block' : 'none';
+
+  // Navigation Footer
+  const footer = document.getElementById('wizardNavFooter');
+  const prevBtn = document.getElementById('wizardPrevBtn');
+  const nextBtn = document.getElementById('wizardNextBtn');
+  const submitBtn = document.getElementById('wizardSubmitBtn');
+
+  if (currentWizardStep === 5) {
+    if (footer) footer.style.display = 'none';
+  } else {
+    if (footer) footer.style.display = 'flex';
+    if (prevBtn) prevBtn.style.display = (currentWizardStep > 1) ? 'inline-block' : 'none';
+    if (nextBtn) nextBtn.style.display = (currentWizardStep < 4) ? 'inline-block' : 'none';
+    if (submitBtn) submitBtn.style.display = (currentWizardStep === 4) ? 'inline-block' : 'none';
+  }
+}
+
+function setupTravelServicesAndHostPortal() {
+  // 1. Navigation Pills
+  document.getElementById('navPillStays')?.addEventListener('click', (e) => { e.preventDefault(); switchServiceTab('stays'); });
+  document.getElementById('navPillFlights')?.addEventListener('click', (e) => { e.preventDefault(); switchServiceTab('flights'); });
+  document.getElementById('navPillPackages')?.addEventListener('click', (e) => { e.preventDefault(); switchServiceTab('packages'); });
+  document.getElementById('navPillCars')?.addEventListener('click', (e) => { e.preventDefault(); switchServiceTab('cars'); });
+  document.getElementById('navPillAttractions')?.addEventListener('click', (e) => { e.preventDefault(); switchServiceTab('attractions'); });
+  document.getElementById('navPillTaxis')?.addEventListener('click', (e) => { e.preventDefault(); switchServiceTab('taxis'); });
+
+  // 2. Flight Route Chips
+  document.querySelectorAll('#flightRouteChips .filter-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      document.querySelectorAll('#flightRouteChips .filter-chip').forEach(c => c.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      renderFlights(e.currentTarget.getAttribute('data-route'));
+    });
+  });
+
+  // 3. Car Type Chips
+  document.querySelectorAll('#carTypeChips .filter-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      document.querySelectorAll('#carTypeChips .filter-chip').forEach(c => c.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      renderCars(e.currentTarget.getAttribute('data-car'));
+    });
+  });
+
+  // 4. Attraction Chips
+  document.querySelectorAll('#attractionChips .filter-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      document.querySelectorAll('#attractionChips .filter-chip').forEach(c => c.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      renderAttractions(e.currentTarget.getAttribute('data-att'));
+    });
+  });
+
+  // 5. Search forms submit handlers
+  document.getElementById('searchFormFlights')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    renderFlights('all');
+    showToast('Found 6 matching flights for your journey!');
+  });
+
+  document.getElementById('searchFormPackages')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    renderPackages();
+    showToast('Found 4 curated holiday packages for your dates!');
+  });
+
+  document.getElementById('searchFormCars')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    renderCars('all');
+    showToast('Found 5 rental vehicles ready for pickup!');
+  });
+
+  document.getElementById('searchFormAttractions')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    renderAttractions('all');
+    showToast('Found top activities and guided tours!');
+  });
+
+  document.getElementById('searchFormTaxis')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    renderTaxis();
+    showToast('Fixed-fare airport transfer rates calculated!');
+  });
+
+  // 6. Service Booking Modal Close
+  document.getElementById('closeServiceModalBtn')?.addEventListener('click', () => {
+    document.getElementById('modalServiceBooking').style.display = 'none';
+  });
+  document.getElementById('closeServiceVoucherDone')?.addEventListener('click', () => {
+    document.getElementById('modalServiceBooking').style.display = 'none';
+  });
+
+  // 7. Host Wizard Controls
+  document.querySelectorAll('.prop-type-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.prop-type-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.photo-theme-selector .photo-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.photo-theme-selector .photo-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+    });
+  });
+
+  document.getElementById('wizardNextBtn')?.addEventListener('click', () => {
+    if (currentWizardStep === 2) {
+      const name = document.getElementById('newPropName').value.trim();
+      const city = document.getElementById('newPropCity').value.trim();
+      if (!name || !city) {
+        showToast('Please enter your property name and city');
+        return;
+      }
+    } else if (currentWizardStep === 3) {
+      const price = parseFloat(document.getElementById('newPropPrice').value);
+      if (!price || price < 500) {
+        showToast('Please enter a valid nightly rate (min ₹500)');
+        return;
+      }
+    }
+    currentWizardStep = Math.min(4, currentWizardStep + 1);
+    updateWizardUI();
+  });
+
+  document.getElementById('wizardPrevBtn')?.addEventListener('click', () => {
+    currentWizardStep = Math.max(1, currentWizardStep - 1);
+    updateWizardUI();
+  });
+
+  document.getElementById('wizardCancelBtn')?.addEventListener('click', () => {
+    document.getElementById('modalListProperty').style.display = 'none';
+  });
+  document.getElementById('closeListPropModalBtn')?.addEventListener('click', () => {
+    document.getElementById('modalListProperty').style.display = 'none';
+  });
+  document.getElementById('btnCloseWizardSuccess')?.addEventListener('click', () => {
+    document.getElementById('modalListProperty').style.display = 'none';
+  });
+
+  // Publish Listing Form Submit
+  document.getElementById('listPropertyForm')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const selectedCat = document.querySelector('input[name="propCategory"]:checked')?.value || 'Hotel';
+    const propName = document.getElementById('newPropName').value.trim() || 'Ocean Palms Luxury Villa';
+    const city = document.getElementById('newPropCity').value.trim() || 'Chennai';
+    const area = document.getElementById('newPropArea').value.trim() || 'East Coast Road';
+    const price = parseFloat(document.getElementById('newPropPrice').value) || 5200;
+    const bio = document.getElementById('newPropBio').value.trim() || 'Experience panoramic sea views and comfort.';
+
+    const selectedAmenities = Array.from(document.querySelectorAll('input[name="propAmenity"]:checked')).map(c => c.value);
+    if (selectedAmenities.length === 0) selectedAmenities.push('Free WiFi', 'Air Conditioning');
+
+    const photoTheme = document.querySelector('input[name="propPhotoTheme"]:checked')?.value || 'villa';
+    const themeImages = {
+      luxury: [
+        'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80',
+        'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80'
+      ],
+      villa: [
+        'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=900&q=80',
+        'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80'
+      ],
+      apartment: [
+        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80',
+        'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
+      ],
+      resort: [
+        'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=900&q=80',
+        'https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=800&q=80'
+      ]
+    };
+
+    const hostId = 'TN-HOST-' + Math.floor(10000 + Math.random() * 90000);
+    const newId = 'hotel-user-' + Date.now();
+
+    const newHotel = {
+      id: newId,
+      name: propName,
+      city: city,
+      area: `${area}, ${city}`,
+      country: 'India',
+      distanceFromCenter: '0.8 km from centre',
+      rating: 9.6,
+      ratingText: 'Exceptional (New Host)',
+      reviewsCount: 1,
+      pricePerNight: price,
+      propertyType: selectedCat,
+      stars: 5,
+      coordinates: { lat: 13.0827, lng: 80.2707 },
+      badge: 'Brand New Host',
+      description: bio,
+      amenities: selectedAmenities,
+      images: themeImages[photoTheme] || themeImages.luxury
+    };
+
+    // Add to state and persistence
+    state.hotels.unshift(newHotel);
+    localStorage.setItem('tripnest_custom_hotels', JSON.stringify(state.hotels));
+
+    // Update success panel
+    document.getElementById('successHostId').textContent = hostId;
+    document.getElementById('successHotelName').textContent = propName;
+    document.getElementById('successHotelLoc').textContent = `${city}, India`;
+    document.getElementById('successRate').textContent = `${formatINR(price)} / night`;
+
+    currentWizardStep = 5;
+    updateWizardUI();
+
+    showToast(`🎉 Congratulations! ${propName} is now published on TripNest!`);
+  });
+
+  // Action to view published listing
+  document.getElementById('btnViewPublishedListing')?.addEventListener('click', () => {
+    document.getElementById('modalListProperty').style.display = 'none';
+    switchServiceTab('stays');
+    state.destination = document.getElementById('newPropCity').value.trim() || 'Chennai';
+    document.getElementById('destinationInput').value = state.destination;
+    performSearch();
+    showToast('Showing your newly listed property in search results!');
+  });
 }
 
 // ============================================================================
@@ -1670,6 +2418,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupConfirmationActions();
   setupDashboardTabs();
   setupHomepageComponents();
+  setupTravelServicesAndHostPortal();
 
   // Handle direct hash navigation
   const hash = window.location.hash.replace('#', '');
@@ -1680,6 +2429,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDashboard();
   } else if (hash === 'results') {
     performSearch();
+  } else if (['flights', 'packages', 'cars', 'attractions', 'taxis'].includes(hash)) {
+    switchServiceTab(hash);
   } else {
     switchView('home');
   }
