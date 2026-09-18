@@ -836,63 +836,7 @@ img {
   line-height: 1.4;
 }
 
-.flow-guide-bar {
-  background: #ffffff;
-  border: 1px solid #bfdbfe;
-  border-radius: var(--b-radius-md);
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
 
-.flow-steps-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--b-text-main);
-  flex-wrap: wrap;
-}
-
-.flow-step-num {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--b-blue);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flow-arrow {
-  color: #94a3b8;
-  font-weight: 700;
-}
-
-.btn-primary-flow {
-  background: var(--b-blue);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 9px 18px;
-  border-radius: var(--b-radius-sm);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: background-color 0.15s ease, transform 0.1s ease;
-}
-
-.btn-primary-flow:hover {
-  background: var(--b-blue-hover);
-  transform: translateY(-1px);
-}
 
 .section-why-booking {
   padding: 24px 0 36px;

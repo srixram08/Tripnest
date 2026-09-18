@@ -1640,10 +1640,7 @@ function setupHomepageComponents() {
     });
   });
 
-  // Hero Go To Login CTA on Landing Page
-  document.getElementById('heroGoToLoginBtn')?.addEventListener('click', () => {
-    switchView('login');
-  });
+
 
   // Genius Banner CTAs
   document.getElementById('geniusSignIn').addEventListener('click', () => {

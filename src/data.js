@@ -477,7 +477,7 @@ export const TRENDING_DESTINATIONS = [
     id: 'hyderabad',
     name: 'Hyderabad',
     flag: '🇮🇳',
-    image: 'https://images.unsplash.com/photo-1605007493699-ce65834f8a00?auto=format&fit=crop&w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1627894483216-2138af692e32?auto=format&fit=crop&w=600&q=80',
     subtitle: 'Charminar & royal culinary delights',
     span: 'small'
   }
@@ -523,7 +523,7 @@ export const TRIP_PLANNER = {
       { name: 'Manali', distance: '530 km away', image: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=500&q=80' }
     ],
     food: [
-      { name: 'Hyderabad', distance: '500 km away', image: 'https://images.unsplash.com/photo-1605007493699-ce65834f8a00?auto=format&fit=crop&w=500&q=80' },
+      { name: 'Hyderabad', distance: '500 km away', image: 'https://images.unsplash.com/photo-1627894483216-2138af692e32?auto=format&fit=crop&w=500&q=80' },
       { name: 'Chennai', distance: '120 km away', image: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&w=500&q=80' },
       { name: 'Kolkata', distance: '620 km away', image: 'https://images.unsplash.com/photo-1558431382-27e303142255?auto=format&fit=crop&w=500&q=80' }
     ]
@@ -535,7 +535,7 @@ export const EXPLORE_INDIA = [
   { name: 'New Delhi', count: '4,395 properties', image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=500&q=80' },
   { name: 'Bengaluru', count: '3,150 properties', image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=500&q=80' },
   { name: 'Mumbai', count: '1,845 properties', image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=500&q=80' },
-  { name: 'Hyderabad', count: '2,147 properties', image: 'https://images.unsplash.com/photo-1605007493699-ce65834f8a00?auto=format&fit=crop&w=500&q=80' },
+  { name: 'Hyderabad', count: '2,147 properties', image: 'https://images.unsplash.com/photo-1627894483216-2138af692e32?auto=format&fit=crop&w=500&q=80' },
   { name: 'Goa', count: '2,890 properties', image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=500&q=80' }
 ];
 
